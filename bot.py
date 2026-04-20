@@ -21,20 +21,25 @@ intents.message_content = True
 intents.members = True
 
 # ========== НАСТРОЙКИ ==========
-WHITE_SERVER_ID = 1458476750198800590          # ID вашего сервера
-PANEL_CHANNEL_ID = 1495833214218928218        # Канал с кнопкой подачи иска
-TICKET_CATEGORY_ID = 1495833422810189994      # Категория для каналов исков
+WHITE_SERVER_ID = 1458476750198800590
+PANEL_CHANNEL_ID = 1495833214218928218
+
+# ID категорий для каждого суда
+COURT_CATEGORY_IDS = {
+    "Областной Суд": 1459080376797630494,
+    "Верховный Суд": 1458957161890582643,
+    "Конституционный Суд": 1458957154244624456
+}
 
 ROLE_IDS = [
-    1475470962379067392,   # замените на актуальные ID ролей сотрудников суда
+    1475470962379067392,
     1491509114034192384,
     1491508543432687666
 ]
 
-lawsuit_status = {}   # хранит статус иска: waiting / review
+lawsuit_status = {}
 
 def check_roles(interaction: discord.Interaction) -> bool:
-    """Проверка: есть ли у пользователя одна из разрешённых ролей ИЛИ права администратора"""
     if interaction.user.guild_permissions.administrator:
         return True
     for role_id in ROLE_IDS:
@@ -44,11 +49,6 @@ def check_roles(interaction: discord.Interaction) -> bool:
     return False
 
 def can_close_lawsuit(interaction: discord.Interaction, lawsuit_author_id: int) -> bool:
-    """Кто может закрыть иск:
-    1. Администратор сервера
-    2. Сотрудник с ролью из списка
-    3. Автор иска (только если статус не 'review')
-    """
     if interaction.user.guild_permissions.administrator:
         return True
     for role_id in ROLE_IDS:
@@ -122,12 +122,17 @@ class CourtSelect(Select):
                 await interaction.followup.send("⛔ Бот работает только на официальном сервере!", ephemeral=True)
                 return
             
-            category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
-            if not category:
-                category = await interaction.guild.create_category("Исковые заявления")
-                await interaction.followup.send("ℹ️ Категория для исков создана автоматически.", ephemeral=True)
+            category_id = COURT_CATEGORY_IDS.get(court_name)
+            if not category_id:
+                await interaction.followup.send(f"❌ Неизвестный суд: {court_name}", ephemeral=True)
+                return
             
-            # Название канала: иск-никнейм-суд (сокращённо)
+            category = interaction.guild.get_channel(category_id)
+            if not category:
+                # Если категория не найдена, пытаемся создать (на всякий случай)
+                category = await interaction.guild.create_category(f"Иски - {court_name}")
+                await interaction.followup.send(f"ℹ️ Категория для {court_name} создана автоматически.", ephemeral=True)
+            
             short_court = court_name.replace(" ", "").replace("Суд", "")
             channel_name = f"иск-{interaction.user.name.lower()}-{short_court.lower()}"
             existing = discord.utils.get(interaction.guild.text_channels, name=channel_name)
@@ -155,7 +160,6 @@ class CourtSelect(Select):
                 "court": court_name
             }
             
-            # Форма искового заявления
             embed = discord.Embed(
                 title=f"⚖️ {court_name} Нижегородской области",
                 description=(
