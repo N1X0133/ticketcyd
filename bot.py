@@ -24,22 +24,24 @@ intents.members = True
 WHITE_SERVER_ID = 1458476750198800590
 PANEL_CHANNEL_ID = 1495833214218928218
 
-# ID категорий для каждого суда
+# ID категорий для каждого суда (исправлены)
 COURT_CATEGORY_IDS = {
-    "Областной Суд": 1459080376797630494,
-    "Верховный Суд": 1458957161890582643,
-    "Конституционный Суд": 1458957154244624456
+    "Областной Суд": 1495840411753648289,
+    "Верховный Суд": 1495839999332192488,
+    "Конституционный Суд": 1495840179934462054
 }
 
+# ID ролей сотрудников суда (исправлены)
 ROLE_IDS = [
-    1475470962379067392,
-    1491509114034192384,
-    1491508543432687666
+    1458957161890582643,   # Верховный суд (роль)
+    1459079964585496711,   # Областной суд (роль)
+    1458957154244624456    # Конституционный суд (роль)
 ]
 
 lawsuit_status = {}
 
 def check_roles(interaction: discord.Interaction) -> bool:
+    """Проверка: есть ли у пользователя одна из разрешённых ролей ИЛИ права администратора"""
     if interaction.user.guild_permissions.administrator:
         return True
     for role_id in ROLE_IDS:
@@ -49,6 +51,11 @@ def check_roles(interaction: discord.Interaction) -> bool:
     return False
 
 def can_close_lawsuit(interaction: discord.Interaction, lawsuit_author_id: int) -> bool:
+    """Кто может закрыть иск:
+    1. Администратор сервера
+    2. Сотрудник с ролью из списка
+    3. Автор иска (только если статус не 'review')
+    """
     if interaction.user.guild_permissions.administrator:
         return True
     for role_id in ROLE_IDS:
@@ -129,7 +136,6 @@ class CourtSelect(Select):
             
             category = interaction.guild.get_channel(category_id)
             if not category:
-                # Если категория не найдена, пытаемся создать (на всякий случай)
                 category = await interaction.guild.create_category(f"Иски - {court_name}")
                 await interaction.followup.send(f"ℹ️ Категория для {court_name} создана автоматически.", ephemeral=True)
             
